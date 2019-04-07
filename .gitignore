@@ -89,6 +89,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.DS_Store
 
 # Spyder project settings
 .spyderproject
@@ -102,3 +103,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# ML Specific
+## .txt files are the datasets
+## .local are the tensorboard files
+## .ckt are the model checkpoints
+*.txt
+*.local
+*.ckt

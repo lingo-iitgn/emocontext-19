@@ -1,1 +1,0 @@
-Dataset for the task can be found on - https://competitions.codalab.org/competitions/19790

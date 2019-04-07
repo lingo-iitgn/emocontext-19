@@ -1,19 +1,19 @@
 # emocontext-19
-This repository contains our code for the paper titled **IIT Gandhinagar at SemEval-2019 Task 3: Contextual Emotion Detection Using Deep Learning**. Camera ready version link will be avilable here very soon.
+This repository contains our code for the paper titled **IIT Gandhinagar at SemEval-2019 Task 3: Contextual Emotion Detection Using Deep Learning**. Camera ready version will be available here soon.
 
 ## Installation
 
-The python 3.6.8 was used and to install all the dependencies do 
+Python 3.6.8 was used and to install all the dependencies do - 
 ```py
 pip3 install -r requirements.txt
 ```
 ## Code
 
-There are 2 broad approaches as mentioned in our paper
+There are 2 broad approaches as mentioned in the paper
 1. Non Deep Learning Approach
 
     * SVM
-    * Logistic Regressions
+    * Logistic Regression
 
 2. Deep Learning Approach
 

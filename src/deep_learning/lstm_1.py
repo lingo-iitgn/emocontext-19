@@ -1,28 +1,33 @@
 # import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
+import argparse
+import io
+import json
+import os
+import re
+import sklearn
+import sys
+
 # Please use python 3.5 or above
 import numpy as np
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
-from keras.models import Sequential, Model
-from keras.backend import argmax
-from keras.layers import Dense, Embedding, LSTM, LeakyReLU, Concatenate, Input, Bidirectional, Conv1D, MaxPooling1D, Reshape, MaxPooling2D, Flatten, Dropout, Conv2D, MaxPooling2D
-from keras import optimizers
-from nltk.tokenize import TweetTokenizer
-from keras.models import load_model
-from nltk.stem.porter import PorterStemmer
-from nltk.stem import WordNetLemmatizer
-from keras.metrics import  categorical_accuracy, binary_accuracy
-from spellchecker import SpellChecker
-from keras.losses import categorical_crossentropy
-import json, argparse, os
-import re
-import io
-import sys, sklearn
 import tensorflow as tf
 from emoji import UNICODE_EMOJI
+from keras import optimizers
+from keras.backend import argmax
+from keras.layers import Dense, Embedding, LSTM, LeakyReLU, Concatenate, Input, Bidirectional, Conv1D, MaxPooling1D, \
+    Reshape, MaxPooling2D, Flatten, Dropout, Conv2D, MaxPooling2D
+from keras.losses import categorical_crossentropy
+from keras.metrics import categorical_accuracy, binary_accuracy
+from keras.models import Sequential, Model
+from keras.models import load_model
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import Tokenizer
+from keras.utils import to_categorical
+from nltk.stem import WordNetLemmatizer
+from nltk.stem.porter import PorterStemmer
+from nltk.tokenize import TweetTokenizer
+from spellchecker import SpellChecker
 
 # Path to training and testing data file. This data can be downloaded from a link, details of which will be provided.
 trainDataPath = ""
@@ -39,27 +44,26 @@ ssweDir = ""
 # Path to sswe embedding matrix
 embeddingMatrixSSWEPath = ""
 
-NUM_FOLDS = None                   # Value of K in K-fold Cross Validation
-NUM_CLASSES = None                 # Number of classes - Happy, Sad, Angry, Others
-MAX_NB_WORDS = None                # To set the upper limit on the number of tokens extracted using keras.preprocessing.text.Tokenizer
-MAX_SEQUENCE_LENGTH = None         # All sentences having lesser number of words than this will be padded
-EMBEDDING_DIM_GLOVE = None         # The dimension of the GloVe word embeddings
-EMBEDDING_DIM_SSWE = None          # The dimension of the SSWE word embeddings
-BATCH_SIZE = None                  # The batch size to be chosen for training the model.
-LSTM_DIM = None                    # The dimension of the representations learnt by the LSTM model
-DROPOUT = None                     # Fraction of the units to drop for the linear transformation of the inputs. Ref - https://keras.io/layers/recurrent/
-NUM_EPOCHS = None                  # Number of epochs to train a model for
+NUM_FOLDS = None  # Value of K in K-fold Cross Validation
+NUM_CLASSES = None  # Number of classes - Happy, Sad, Angry, Others
+MAX_NB_WORDS = None  # To set the upper limit on the number of tokens extracted using keras.preprocessing.text.Tokenizer
+MAX_SEQUENCE_LENGTH = None  # All sentences having lesser number of words than this will be padded
+EMBEDDING_DIM_GLOVE = None  # The dimension of the GloVe word embeddings
+EMBEDDING_DIM_SSWE = None  # The dimension of the SSWE word embeddings
+BATCH_SIZE = None  # The batch size to be chosen for training the model.
+LSTM_DIM = None  # The dimension of the representations learnt by the LSTM model
+DROPOUT = None  # Fraction of the units to drop for the linear transformation of the inputs. Ref - https://keras.io/layers/recurrent/
+NUM_EPOCHS = None  # Number of epochs to train a model for
 
-
-label2emotion = {0:"others", 1:"happy", 2: "sad", 3:"angry"}
-emotion2label = {"others":0, "happy":1, "sad":2, "angry":3}
+label2emotion = {0: "others", 1: "happy", 2: "sad", 3: "angry"}
+emotion2label = {"others": 0, "happy": 1, "sad": 2, "angry": 3}
 
 emoji2emoticons = {'😑': ':|', '😖': ':(', '😯': ':o', '😝': ':p', '😐': ':|',
-                '😈': ':)', '🙁': ':(', '😎': ':)', '😞': ':(', '♥️': '<3', '💕': 'love',
-                '😀': ':d', '😢': ":(", '👍': 'ok', '😇': ':)', '😜': ':p',
-                '💙': 'love', '☹️': ':(', '😘': ':)', '🤔': 'hmm', '😲': ':o',
-                '🙂': ':)', '\U0001f923': ':d', '😂': ':d', '👿': ':(', '😛': ':p',
-                '😉': ';)', '🤓': '8-)'}
+                   '😈': ':)', '🙁': ':(', '😎': ':)', '😞': ':(', '♥️': '<3', '💕': 'love',
+                   '😀': ':d', '😢': ":(", '👍': 'ok', '😇': ':)', '😜': ':p',
+                   '💙': 'love', '☹️': ':(', '😘': ':)', '🤔': 'hmm', '😲': ':o',
+                   '🙂': ':)', '\U0001f923': ':d', '😂': ':d', '👿': ':(', '😛': ':p',
+                   '😉': ';)', '🤓': '8-)'}
 
 
 def clean_word(word):
@@ -72,7 +76,7 @@ def clean_word(word):
     for k in range(len(word)):
         if word[k] in UNICODE_EMOJI:
             # check if word[k] is an emoji
-            if(word[k] in emoji2emoticons):
+            if (word[k] in emoji2emoticons):
                 final_list.append(emoji2emoticons[word[k]])
         else:
             temp_word = temp_word + word[k]
@@ -159,9 +163,9 @@ def getMetrics(ground, predictions):
     # ground = tf.constant(ground)#,dtype=tf.float32)
     # if tf.equal(discretePredictions.shape, ground.shape) is True:
     #     print ('All well here')
-    truePositives = np.sum((discretePredictions*ground), axis=0)
+    truePositives = np.sum((discretePredictions * ground), axis=0)
     falsePositives = np.sum(tf.clip_by_value(discretePredictions - ground, 0.0, 1.0), axis=0)
-    falseNegatives = np.sum(tf.clip_by_value(ground-discretePredictions, 0.0, 1.0), axis=0)
+    falseNegatives = np.sum(tf.clip_by_value(ground - discretePredictions, 0.0, 1.0), axis=0)
 
     # print("True Positives per class : ", truePositives)
     # print("False Positives per class : ", falsePositives)
@@ -202,7 +206,8 @@ def getMetrics(ground, predictions):
     microRecall = tf.divide(truePositives, tf.add_n([truePositives, falseNegatives]))
 
     # if tf.greater(tf.add_n([microPrecision, microRecall]), tf.constant(0.0)) is True:
-    microF1 = tf.divide(tf.multiply(2.0, tf.multiply(microRecall, microPrecision)), tf.add_n([microPrecision, microRecall]))
+    microF1 = tf.divide(tf.multiply(2.0, tf.multiply(microRecall, microPrecision)),
+                        tf.add_n([microPrecision, microRecall]))
     # else:
     #    microF1 = tf.constant(0.0, dtype=tf.float32)
     # -----------------------------------------------------
@@ -212,7 +217,7 @@ def getMetrics(ground, predictions):
     # accuracy = np.mean(predictions==ground)
 
     # print("Accuracy : %.4f, Micro Precision : %.4f, Micro Recall : %.4f, Micro F1 : %.4f" % (accuracy, microPrecision, microRecall, microF1))
-    return("%.2f"%microF1)
+    return ("%.2f" % microF1)
 
 
 def writeNormalisedData(dataFilePath, texts):
@@ -262,13 +267,13 @@ def getEmbeddingMatrix_glove(wordIndex, load=False):
             word = values[0]
             embeddingVector = np.asarray(values[1:], dtype='float32')
             embeddingsIndex[word] = embeddingVector
-    
+
     print('Found %s word vectors.' % len(embeddingsIndex))
 
     bad_words_glove_1 = set([])
     bad_words_glove_2 = set([])
-    counter=0
-    
+    counter = 0
+
     # Minimum word index of any word is 1. 
     embeddingMatrix = np.zeros((len(wordIndex) + 1, EMBEDDING_DIM_GLOVE))
     for word, i in wordIndex.items():
@@ -289,14 +294,14 @@ def getEmbeddingMatrix_glove(wordIndex, load=False):
             if not temp_embedding_vector.all():
                 bad_words_glove_2.add(word)
             embeddingMatrix[i] = temp_embedding_vector
-        if(counter%1000==0):
+        if (counter % 1000 == 0):
             print(counter)
-        counter+=1
-    
-    print("Bad words in GloVe 1 - %d"%len(bad_words_glove_1))
-    print("Bad words in GloVe 2 - %d"%len(bad_words_glove_2))
-    
-#     np.save(embeddingMatrixGlovePath, embeddingMatrix)
+        counter += 1
+
+    print("Bad words in GloVe 1 - %d" % len(bad_words_glove_1))
+    print("Bad words in GloVe 2 - %d" % len(bad_words_glove_2))
+
+    #     np.save(embeddingMatrixGlovePath, embeddingMatrix)
 
     return embeddingMatrix
 
@@ -324,7 +329,7 @@ def getEmbeddingMatrix_sswe(wordIndex, load=False):
 
     bad_words_sswe_1 = set([])
     bad_words_sswe_2 = set([])
-    counter=0
+    counter = 0
 
     # Minimum word index of any word is 1.
     embeddingMatrix = np.zeros((len(wordIndex) + 1, EMBEDDING_DIM_SSWE))
@@ -345,14 +350,14 @@ def getEmbeddingMatrix_sswe(wordIndex, load=False):
             if not temp_embedding_vector.all():
                 bad_words_sswe_2.add(word)
             embeddingMatrix[i] = temp_embedding_vector
-        if(counter%1000==0):
+        if (counter % 1000 == 0):
             print(counter)
         counter += 1
 
-    print("Bad words in SSWE 1 - %d"%len(bad_words_sswe_1))
-    print("Bad words in SSWE 2 - %d"%len(bad_words_sswe_2))
-    
-#     np.save(embeddingMatrixSSWEPath, embeddingMatrix)
+    print("Bad words in SSWE 1 - %d" % len(bad_words_sswe_1))
+    print("Bad words in SSWE 2 - %d" % len(bad_words_sswe_2))
+
+    #     np.save(embeddingMatrixSSWEPath, embeddingMatrix)
 
     return embeddingMatrix
 
@@ -366,25 +371,25 @@ def buildModel(embeddingMatrix1, embeddingMatrix2):
     """
     main_input_1 = Input(shape=(100,), name='main_input_1')
     embeddingLayer1 = Embedding(embeddingMatrix1.shape[0],
-                               EMBEDDING_DIM_GLOVE,
-                               weights=[embeddingMatrix1],
-                               input_length=MAX_SEQUENCE_LENGTH,
-                               trainable=False) (main_input_1)
-    model1 = LSTM(LSTM_DIM, dropout=DROPOUT, return_sequences=True) (embeddingLayer1)
-    model1 = LSTM(LSTM_DIM, dropout=DROPOUT) (model1)
-    
+                                EMBEDDING_DIM_GLOVE,
+                                weights=[embeddingMatrix1],
+                                input_length=MAX_SEQUENCE_LENGTH,
+                                trainable=False)(main_input_1)
+    model1 = LSTM(LSTM_DIM, dropout=DROPOUT, return_sequences=True)(embeddingLayer1)
+    model1 = LSTM(LSTM_DIM, dropout=DROPOUT)(model1)
+
     main_input_2 = Input(shape=(100,), name='main_input_2')
     embeddingLayer2 = Embedding(embeddingMatrix2.shape[0],
                                 EMBEDDING_DIM_SSWE,
                                 weights=[embeddingMatrix2],
                                 input_length=MAX_SEQUENCE_LENGTH,
-                                trainable=False) (main_input_2)
-    model2 = LSTM(LSTM_DIM, dropout=DROPOUT, return_sequences=True) (embeddingLayer2)
-    model2 = LSTM(LSTM_DIM, dropout=DROPOUT) (model2)
+                                trainable=False)(main_input_2)
+    model2 = LSTM(LSTM_DIM, dropout=DROPOUT, return_sequences=True)(embeddingLayer2)
+    model2 = LSTM(LSTM_DIM, dropout=DROPOUT)(model2)
 
-    model3 = Concatenate() ([model1, model2])
-    model3 = LeakyReLU(alpha=0.1) (model3)
-    model3 = Dense(NUM_CLASSES, activation="softmax") (model3)
+    model3 = Concatenate()([model1, model2])
+    model3 = LeakyReLU(alpha=0.1)(model3)
+    model3 = Dense(NUM_CLASSES, activation="softmax")(model3)
     model = Model([main_input_1, main_input_2], model3)
     rmsprop = optimizers.rmsprop(lr=LEARNING_RATE)
     model.compile(loss='categorical_crossentropy',
@@ -405,17 +410,18 @@ def cnnModel(embeddingMatrix1):
 
     main_input_1 = Input(shape=(100,), name='main_input_1')
     embeddingLayer1 = Embedding(embeddingMatrix1.shape[0],
-                               EMBEDDING_DIM_GLOVE,
-                               weights=[embeddingMatrix1],
-                               input_length=MAX_SEQUENCE_LENGTH,
-                               trainable=False) (main_input_1)
-    embeddingLayer1 = Reshape((100, EMBEDDING_DIM_GLOVE, 1)) (embeddingLayer1)
-    model1 = Conv2D(NUM_FILTERS, kernel_size=(3,EMBEDDING_DIM_GLOVE), padding='same', activation='relu') (embeddingLayer1)
-    model1 = Conv2D(NUM_FILTERS, kernel_size=(4,EMBEDDING_DIM_GLOVE), padding='same', activation='relu') (model1)
-    model1 = Conv2D(NUM_FILTERS, kernel_size=(5,EMBEDDING_DIM_GLOVE), padding='same', activation='relu') (model1)
-    model1 = MaxPooling2D(EMBEDDING_DIM_GLOVE) (model1)
-    model1 = Flatten() (model1)
-    model1 = Dense(NUM_CLASSES, activation="softmax") (model1)
+                                EMBEDDING_DIM_GLOVE,
+                                weights=[embeddingMatrix1],
+                                input_length=MAX_SEQUENCE_LENGTH,
+                                trainable=False)(main_input_1)
+    embeddingLayer1 = Reshape((100, EMBEDDING_DIM_GLOVE, 1))(embeddingLayer1)
+    model1 = Conv2D(NUM_FILTERS, kernel_size=(3, EMBEDDING_DIM_GLOVE), padding='same', activation='relu')(
+        embeddingLayer1)
+    model1 = Conv2D(NUM_FILTERS, kernel_size=(4, EMBEDDING_DIM_GLOVE), padding='same', activation='relu')(model1)
+    model1 = Conv2D(NUM_FILTERS, kernel_size=(5, EMBEDDING_DIM_GLOVE), padding='same', activation='relu')(model1)
+    model1 = MaxPooling2D(EMBEDDING_DIM_GLOVE)(model1)
+    model1 = Flatten()(model1)
+    model1 = Dense(NUM_CLASSES, activation="softmax")(model1)
     model = Model([main_input_1], model1)
     rmsprop = optimizers.rmsprop(lr=LEARNING_RATE)
     model.compile(loss='categorical_crossentropy',
@@ -427,50 +433,50 @@ def cnnModel(embeddingMatrix1):
 
 
 def CNNModel(embeddingMatrix1):
-    main_input = Input(shape=(100, ), name='main_input')
+    main_input = Input(shape=(100,), name='main_input')
     embeddingLayer = Embedding(embeddingMatrix1.shape[0],
                                EMBEDDING_DIM_GLOVE,
                                weights=[embeddingMatrix1],
                                input_length=MAX_SEQUENCE_LENGTH,
-                               trainable=False) (main_input)
-    
+                               trainable=False)(main_input)
+
     conv_blocks = []
     filter_sizes = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
     for fs in filter_sizes:
         conv = Conv1D(filters=NUM_FILTERS,
-                  kernel_size=fs,  
-                  padding='valid',  
-                  strides=1,
-                  activation='relu',
-                  use_bias=True) (embeddingLayer)
+                      kernel_size=fs,
+                      padding='valid',
+                      strides=1,
+                      activation='relu',
+                      use_bias=True)(embeddingLayer)
         conv = Conv1D(filters=NUM_FILTERS,
-                  kernel_size=fs,  
-                  padding='valid',  
-                  strides=1,
-                  activation='relu',
-                  use_bias=True) (conv)
-        conv = MaxPooling1D(pool_size=2)(conv) 
-        conv = Flatten()(conv) 
+                      kernel_size=fs,
+                      padding='valid',
+                      strides=1,
+                      activation='relu',
+                      use_bias=True)(conv)
+        conv = MaxPooling1D(pool_size=2)(conv)
+        conv = Flatten()(conv)
         conv_blocks.append(conv)
-    
+
     concat1max = Concatenate()(conv_blocks)
-    concat1max = Dropout(DROPOUT)(concat1max) 
-    
-    output_layer = Dense(50, activation='relu') (concat1max)
-    output_layer = Dense(4, activation='softmax') (output_layer)
-    
+    concat1max = Dropout(DROPOUT)(concat1max)
+
+    output_layer = Dense(50, activation='relu')(concat1max)
+    output_layer = Dense(4, activation='softmax')(output_layer)
+
     model = Model(inputs=main_input, outputs=output_layer)
     rmsprop = optimizers.rmsprop(lr=LEARNING_RATE)
     model.compile(loss='categorical_crossentropy',
                   optimizer=rmsprop,
                   metrics=[categorical_accuracy])
     print(model.summary())
-    
+
     return model
 
 
 def microf1(ytrue, ypred):
-    return sklearn.metrics.f1_score(ytrue, ypred, average='micro', labels=[1,2,3])
+    return sklearn.metrics.f1_score(ytrue, ypred, average='micro', labels=[1, 2, 3])
 
 
 def all_metrics(ytrue, ypred):
@@ -479,7 +485,7 @@ def all_metrics(ytrue, ypred):
 
 def helper(a):
     for i in range(len(a)):
-        if a[i]==1:
+        if a[i] == 1:
             return i
 
 
@@ -512,42 +518,42 @@ def main():
     EMBEDDING_DIM_SSWE = config["embedding_dim_sswe"]
     BATCH_SIZE = config["batch_size"]
     LSTM_DIM = config["lstm_dim"]
-    
+
     DROPOUT = config["dropout"]
     LEARNING_RATE = config["learning_rate"]
     NUM_EPOCHS = config["num_epochs"]
     NUM_FILTERS = config["num_filters"]
 
     print("Processing training data...")
-    new_trainText=[]
+    new_trainText = []
     tweet_tokenizer = TweetTokenizer()
     trainIndices, trainTexts, labels = preprocessData(trainDataPath, mode="train")
     for i in range(len(trainTexts)):
         tokens = tweet_tokenizer.tokenize(trainTexts[i])
         sent = ' '.join(tokens)
         new_trainText.append(sent)
-    print ('Size of trainText = ', len(trainTexts))
-    print ('Size of new_trainText = ', len(new_trainText))
+    print('Size of trainText = ', len(trainTexts))
+    print('Size of new_trainText = ', len(new_trainText))
 
     print("\nProcessing Validation data...")
-    new_validText=[]
+    new_validText = []
     validIndices, validTexts, validlabels = preprocessData(validDataPath, mode="train")
     for i in range(len(validTexts)):
         tokens = tweet_tokenizer.tokenize(validTexts[i])
         sent = ' '.join(tokens)
         new_validText.append(sent)
-    print ('Size of validText = ', len(validTexts))
-    print ('Size of new_validText = ', len(new_validText))
-    
+    print('Size of validText = ', len(validTexts))
+    print('Size of new_validText = ', len(new_validText))
+
     print("\nProcessing Test data...")
-    new_testText=[]
+    new_testText = []
     testIndices, testTexts, testlabels = preprocessData(testDataPath, mode="train")
     for i in range(len(testTexts)):
         tokens = tweet_tokenizer.tokenize(testTexts[i])
         sent = ' '.join(tokens)
         new_testText.append(sent)
-    print ('Size of testText = ', len(testTexts))
-    print ('Size of new_testText = ', len(new_testText))
+    print('Size of testText = ', len(testTexts))
+    print('Size of new_testText = ', len(new_testText))
 
     # Write normalised text to file to check if normalisation works. Disabled now. Uncomment following line to enable
     # writeNormalisedData(trainDataPath, trainTexts)
@@ -575,7 +581,7 @@ def main():
     labels_valid = to_categorical(np.asarray(validlabels))
     print("Shape of Validation data tensor: ", data_valid.shape)
     print("Shape of validation label tensor: ", labels_valid.shape)
-    
+
     data_test = pad_sequences(testSequences, maxlen=MAX_SEQUENCE_LENGTH)
     labels_test = to_categorical(np.asarray(testlabels))
     print("Shape of Validation data tensor: ", data_test.shape)
@@ -585,29 +591,29 @@ def main():
     np.random.shuffle(trainIndices)
     data = data[trainIndices]
     labels = labels[trainIndices]
-    
+
     # Randomize Validation data
     np.random.shuffle(validIndices)
     data_valid = data_valid[validIndices]
     labels_valid = labels_valid[validIndices]
-    
+
     model = buildModel(embeddingMatrix_glove, embeddingMatrix_sswe)
     model.fit([data, data], labels, epochs=NUM_EPOCHS, batch_size=BATCH_SIZE)
-    
+
     predictions = model.predict([data_valid])
     predictions = predictions.argmax(axis=1)
-    
+
     final_predictions = model.predict([data_test])
     final_predictions = final_predictions.argmax(axis=1)
-    
-    f1score_dev=microf1(labels_valid.argmax(axis=1), predictions)
-    
-    f1score_test=microf1(labels_test.argmax(axis=1), final_predictions)
-    
-    all_metrics_dev=all_metrics(labels_valid.argmax(axis=1), predictions)
-                    
-    all_metrics_test=all_metrics(labels_test.argmax(axis=1), final_predictions)
-                    
+
+    f1score_dev = microf1(labels_valid.argmax(axis=1), predictions)
+
+    f1score_test = microf1(labels_test.argmax(axis=1), final_predictions)
+
+    all_metrics_dev = all_metrics(labels_valid.argmax(axis=1), predictions)
+
+    all_metrics_test = all_metrics(labels_test.argmax(axis=1), final_predictions)
+
     print(f1score_dev)
     print(f1score_test)
     print(all_metrics_dev)
@@ -616,4 +622,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

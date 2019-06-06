@@ -1,5 +1,5 @@
 # emocontext-19
-This repository contains our code for the paper titled **IIT Gandhinagar at SemEval-2019 Task 3: Contextual Emotion Detection Using Deep Learning**. Camera ready version will be available here soon.
+This repository contains our code for the paper titled **IIT Gandhinagar at SemEval-2019 Task 3: Contextual Emotion Detection Using Deep Learning**. Paper can be viewed at https://www.aclweb.org/anthology/papers/S/S19/S19-2039/
 
 ## Installation
 
